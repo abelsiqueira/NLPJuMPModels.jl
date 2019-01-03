@@ -1,4 +1,4 @@
-using NLPModels
+using NLPModels, Unicode
 
 include(joinpath(path, "consistency.jl"))
 
@@ -9,8 +9,8 @@ function test_consistency()
     problem_f = eval(problem)
     nlp_autodiff = eval(Meta.parse("$(problem)_autodiff"))()
     nlp_mpb = MathProgNLPModel(problem_f())
-    nlp_simple = eval(Meta.parse("$(problem)_simple"))()
-    nlps = [nlp_autodiff; nlp_mpb; nlp_simple]
+    nlp_manual = eval(Meta.parse(uppercase(problem_s)))()
+    nlps = [nlp_autodiff; nlp_mpb; nlp_manual]
 
     consistent_nlps(nlps)
   end

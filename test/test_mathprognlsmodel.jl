@@ -8,7 +8,7 @@ println("Testing MathProgNLSModel")
 for prob in [:mgh07,:mgh35,:hs30,:hs43]
   prob_fn = eval(prob)
   nls = prob_fn()
-  N, n, m = nls.nls_meta.nequ, nls.meta.nvar, nls.meta.ncon
+  N, n, m = nlsequ(nls), nls.meta.nvar, nls.meta.ncon
   x = nls.meta.x0
   Fx = residual(nls, x)
   Jx = jac_op_residual(nls, x)

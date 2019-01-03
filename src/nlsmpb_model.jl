@@ -4,12 +4,12 @@ include("mpb_model.jl")
 
 export MathProgNLSModel
 
-mutable struct MathProgNLSModel <: AbstractNLSModel
+mutable struct MathProgNLSModel <: AbstractNLPModel
   meta :: NLPModelMeta
-  nls_meta :: NLSMeta
+  σnls :: Real
   Fmodel :: MathProgModel
   cmodel :: MathProgModel
-  counters :: NLSCounters      # Evaluation counters.
+  counters :: Counters       # Evaluation counters.
 
   Fjrows :: Vector{Int}      # Jacobian sparsity pattern.
   Fjcols :: Vector{Int}
@@ -34,7 +34,7 @@ function MathProgNLSModel(Fmodel :: MathProgModel,
                           name :: String="Generic")
 
   nvar = cmodel.numVar
-  nequ = Fmodel.numConstr
+  nlsequ = Fmodel.numConstr
   lvar = cmodel.lvar
   uvar = cmodel.uvar
 
@@ -51,6 +51,7 @@ function MathProgNLSModel(Fmodel :: MathProgModel,
   chrows, chcols = MathProgBase.hesslag_structure(cmodel.eval)
 
   meta = NLPModelMeta(nvar,
+                      nobjs=0, nlsequ=nlsequ, llsrows=0,
                       x0=cmodel.x,
                       lvar=lvar,
                       uvar=uvar,
@@ -66,10 +67,10 @@ function MathProgNLSModel(Fmodel :: MathProgModel,
                       )
 
   return MathProgNLSModel(meta,
-                          NLSMeta(nequ, nvar),
+                          1.0,
                           Fmodel,
                           cmodel,
-                          NLSCounters(),
+                          Counters(),
                           Fjrows,
                           Fjcols,
                           zeros(length(Fjrows)),  # Fjvals
@@ -93,7 +94,7 @@ end
 
 function NLPModels.jac_residual(nls :: MathProgNLSModel, x :: AbstractVector)
   increment!(nls, :neval_jac_residual)
-  m, n = nls.nls_meta.nequ, nls.meta.nvar
+  m, n = nlsequ(nls), nls.meta.nvar
   MathProgBase.eval_jac_g(nls.Fmodel.eval, nls.Fjvals, x)
   return sparse(nls.Fjrows, nls.Fjcols, nls.Fjvals, m, n)
 end
@@ -114,7 +115,7 @@ end
 
 function NLPModels.hess_residual(nls :: MathProgNLSModel, x :: AbstractVector, i :: Int)
   increment!(nls, :neval_hess_residual)
-  y = [j == i ? 1.0 : 0.0 for j = 1:nls.nls_meta.nequ]
+  y = [j == i ? 1.0 : 0.0 for j = 1:nlsequ(nls)]
   n = nls.meta.nvar
   MathProgBase.eval_hesslag(nls.Fmodel.eval, nls.Fhvals, x, 0.0, y)
   return sparse(nls.Fhrows, nls.Fhcols, nls.Fhvals, n, n)
@@ -122,7 +123,7 @@ end
 
 function NLPModels.hprod_residual!(nls :: MathProgNLSModel, x :: AbstractVector, i :: Int, v :: AbstractVector, Hiv :: AbstractVector)
   increment!(nls, :neval_hprod_residual)
-  y = [j == i ? 1.0 : 0.0 for j = 1:nls.nls_meta.nequ]
+  y = [j == i ? 1.0 : 0.0 for j = 1:nlsequ(nls)]
   MathProgBase.eval_hesslag_prod(nls.Fmodel.eval, Hiv, x, v, 0.0, y)
   return Hiv
 end
